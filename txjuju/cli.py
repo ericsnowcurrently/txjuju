@@ -22,16 +22,22 @@ from .errors import CLIError
 RELEASES = ("rc", "beta", "alpha")
 
 
-def _find_supported_binary(juju, version_prefix):
+def _get_juju_version(juju):
     try:
         try:
             executable = _utils.Executable.find(juju)
         except _utils.ExecutableNotFoundError:
             return None
         out = executable.run_out("--version")
-        version = out.decode().strip()
+        return out.decode().strip()
     except Exception:
-        logging.exception("failure while finding best juju binary")
+        logging.exception("failure while getting juju version")
+        return None
+
+
+def _find_supported_binary(juju, version_prefix):
+    version = _get_juju_version(juju)
+    if version is None:
         return None
     if not version.startswith(version_prefix):
         return None
