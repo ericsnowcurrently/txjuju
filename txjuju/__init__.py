@@ -21,35 +21,6 @@ JUJU1 = "juju-1"
 JUJU2 = "juju-2"
 
 
-def _find_best_juju(version_prefix, supported, default=None):
-    try:
-        from distutils.spawn import find_executable
-        import subprocess
-        for juju in supported:
-            found = find_executable(juju)
-            if found == None:
-                continue
-            out = subprocess.check_output([found, "--version"])
-            if out.startswith(version_prefix):
-                return juju
-    except Exception:
-        import logging
-        logging.exception("failure while finding best juju binary")
-        # Fall back to the default.
-    if default is None and supported:
-        # Default to the first supported one.
-        return supported[0]
-    return default
-
-
-JUJU1 = _find_best_juju("1.", [
-        "juju",
-        ])
-JUJU2 = _find_best_juju("2.", [
-        "juju-2.0",
-        ])
-
-
 def get_cli_class(release=JUJU1):
     """Return the juju CLI wrapper for the given release."""
     from . import cli

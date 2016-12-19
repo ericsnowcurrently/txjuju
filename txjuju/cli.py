@@ -17,23 +17,31 @@ from . import config, _utils, _juju1, _juju2
 from .errors import CLIError
 
 
-def _find_best_juju(supported):
-    for juju in supported:
-        try:
-            _utils.Executable.find(juju)
-        except _utils.ExecutableNotFoundError:
-            continue
-        else:
-            return juju
-    else:
-        return supported[0]
+def _find_best_juju(version_prefix, supported, default=None):
+    if default is None and supported:
+        default = supported[0]
+    try:
+        for juju in supported:
+            try:
+                executable = _utils.Executable.find(juju)
+            except _utils.ExecutableNotFoundError:
+                continue
+            out = executable.run_out("--version")
+            version = out.decode().strip()
+            if version.startswith(version_prefix):
+                return juju
+    except Exception:
+        import logging
+        logging.exception("failure while finding best juju binary")
+        # Fall back to the default.
+    return default
 
 
-JUJU1 = _find_best_juju([
+JUJU1 = _find_best_juju("1.", [
         "juju-1",
         "juju-1.25",
         ])
-JUJU2 = _find_best_juju([
+JUJU2 = _find_best_juju("2.", [
         "juju-2",
         "juju-2.0",  # the latest production release
         # (lp:1650644) For now we must accommodate varying binary paths.
