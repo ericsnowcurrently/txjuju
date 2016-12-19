@@ -206,11 +206,9 @@ class CLI(object):
         if not version:
             raise ValueError("missing version")
         elif version.startswith("1."):
-            juju = _juju1.CLIHooks()
-        elif version.startswith("2."):
-            juju = _juju2.CLIHooks()
+            juju = _juju1.CLIHooks(version)
         else:
-            raise ValueError("unsupported Juju version {!r}".format(version))
+            juju = _juju2.CLIHooks(version)
 
         executable = get_executable(filename, juju, cfgdir, envvars)
         return cls(executable, juju)

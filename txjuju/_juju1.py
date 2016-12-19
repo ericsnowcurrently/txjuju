@@ -53,7 +53,17 @@ class ConfigWriter(object):
 
 class CLIHooks(object):
 
+    VERSION = "1.25"
+
     CFGDIR_ENVVAR = "JUJU_HOME"
+
+    def __init__(self, version=None):
+        if version is None:
+            version = self.VERSION
+        elif version != "1.25" and not version.startswith("1.25."):
+            raise ValueError("unsupported Juju version {!r}".format(version))
+
+        self.version = version
 
     def get_bootstrap_args(self, spec, to=None, cfgfile=None,
                            verbose=False, gui=False, autoupgrade=False):
