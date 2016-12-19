@@ -19,27 +19,37 @@ from . import config, _utils, _juju1, _juju2
 from .errors import CLIError
 
 
-def _is_supported_binary(juju, version_prefix):
+RELEASES = ("rc", "beta", "alpha")
+
+
+def _find_supported_binary(juju, version_prefix):
     try:
         try:
             executable = _utils.Executable.find(juju)
         except _utils.ExecutableNotFoundError:
-            return False
+            return None
         out = executable.run_out("--version")
         version = out.decode().strip()
     except Exception:
         logging.exception("failure while finding best juju binary")
-        return False
+        return None
     if not version.startswith(version_prefix):
-        return False
-    return True
+        return None
+    return version
 
 
 def _find_best_juju(version_prefix, supported, default=None):
     if default is None and supported:
         default = supported[0]
     for juju in supported:
-        if _is_supported_binary(juju, version_prefix):
+        version = _find_supported_binary(juju, version_prefix)
+        if version is None:
+            continue
+        for release in RELEASES:
+            if ("-" + release) in version:
+                # Ignore dev releases.
+                break
+        else:
             return juju
     return default
 
