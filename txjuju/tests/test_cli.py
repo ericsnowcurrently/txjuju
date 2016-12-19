@@ -302,6 +302,7 @@ class CLITests(unittest.TestCase):
     def setUp(self):
         super(CLITests, self).setUp()
         self.dirname = None
+        self.os_env_orig = os.environ.copy()
         self.calls = []
         self.exe = StubExecutable(self.calls)
         self.version_cli = StubJujuXCLI(self.calls)
@@ -309,6 +310,8 @@ class CLITests(unittest.TestCase):
     def tearDown(self):
         if self.dirname is not None:
             shutil.rmtree(self.dirname)
+        os.environ.clear()
+        os.environ.update(self.os_env_orig)
         super(CLITests, self).tearDown()
 
     def _resolve_executable(self, filename):
@@ -316,12 +319,38 @@ class CLITests(unittest.TestCase):
             self.dirname = tempfile.mkdtemp(prefix="txjuju-test-")
         return os.path.join(self.dirname, filename)
 
-    def _write_executable(self, filename):
+    def _write_executable(self, filename, version="2.0.0"):
+        out = version + "-trusty-amd64"
         filename = self._resolve_executable(filename)
         with open(filename, "w") as file:
-            file.write("#!/bin/bash\necho $@\nenv")
+            file.write("#!/bin/bash\necho '{}'\n".format(out))
         os.chmod(filename, 0o755)
         return filename
+
+    def test_from_version_full_version(self):
+        filename = self._write_executable("juju")
+        for version in ("1.25.8", "2.0.1"):
+            cli = CLI.from_version(filename, version, "/tmp")
+
+            self.assertEqual(cli.executable.filename, filename)
+            # TODO: Check cli.version instead (once it's added).
+            self.assertEqual(cli._juju.VERSION, version.rpartition(".")[0])
+
+    def test_from_version_partial_version(self):
+        filename = self._write_executable("juju")
+        for version in ("1.25", "1.25.x"):
+            cli = CLI.from_version(filename, version, "/tmp")
+            self.assertEqual(cli._juju.VERSION, "1.25")
+        for version in ("1", "1.x"):
+            with self.assertRaises(ValueError):
+                CLI.from_version(filename, version, "/tmp")
+
+    def test_from_version_executable_found(self):
+        filename = self._write_executable("juju")
+        os.environ["PATH"] = self.dirname
+        cli = CLI.from_version("juju", "1.25.8", "/tmp")
+
+        self.assertEqual(cli.executable.filename, filename)
 
     def test_from_version_missing_filename(self):
         with self.assertRaises(ValueError):
@@ -341,11 +370,62 @@ class CLITests(unittest.TestCase):
         with self.assertRaises(ValueError):
             CLI.from_version("juju", "", "/tmp")
 
-    def test_from_version_unsupported_version(self):
+    def test_from_version_missing_cfgdir(self):
         with self.assertRaises(ValueError):
             CLI.from_version("juju", "1.25.6", None)
         with self.assertRaises(ValueError):
             CLI.from_version("juju", "1.25.6", "")
+
+    def test_from_version_unsupported_version(self):
+        with self.assertRaises(ValueError):
+            CLI.from_version("juju", "1.24.5", "/tmp")
+
+    def test_from_filename_1_25(self):
+        filename = self._write_executable("juju", "1.25.8")
+        cli = CLI.from_filename(filename, "/tmp")
+
+        self.assertEqual(cli.executable.filename, filename)
+        # TODO: Check cli.version instead (once it's added).
+        self.assertEqual(cli._juju.VERSION, "1.25")
+
+    def test_from_filename_2_0(self):
+        filename = self._write_executable("juju", "2.0.1")
+        cli = CLI.from_filename(filename, "/tmp")
+
+        self.assertEqual(cli.executable.filename, filename)
+        # TODO: Check cli.version instead (once it's added).
+        self.assertEqual(cli._juju.VERSION, "2.0")
+
+    def test_from_filename_executable_found(self):
+        filename = self._write_executable("juju", "1.25.8")
+        os.environ["PATH"] = self.dirname
+        cli = CLI.from_filename("juju", "/tmp")
+
+        self.assertEqual(cli.executable.filename, filename)
+
+    def test_from_filename_missing_filename(self):
+        with self.assertRaises(ValueError):
+            CLI.from_filename(None, "/tmp")
+        with self.assertRaises(ValueError):
+            CLI.from_filename("", "/tmp")
+
+    def test_from_filename_executable_not_found(self):
+        filename = self._resolve_executable("does-not-exist")
+
+        with self.assertRaises(_utils.ExecutableNotFoundError):
+            CLI.from_filename(filename, "/tmp")
+
+    def test_from_filename_missing_cfgdir(self):
+        with self.assertRaises(ValueError):
+            CLI.from_filename("juju", None)
+        with self.assertRaises(ValueError):
+            CLI.from_filename("juju", "")
+
+    def test_from_filename_unsupported_version(self):
+        filename = self._write_executable("juju", "1.24.5")
+
+        with self.assertRaises(ValueError):
+            CLI.from_filename(filename, "/tmp")
 
     def test_missing_executable(self):
         version_cli = object()

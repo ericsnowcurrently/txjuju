@@ -24,11 +24,12 @@ RELEASES = ("rc", "beta", "alpha")
 
 def _get_juju_version(juju):
     try:
-        try:
-            executable = _utils.Executable.find(juju)
-        except _utils.ExecutableNotFoundError:
-            return None
-        out = executable.run_out("--version")
+        if isinstance(juju, str):
+            try:
+                juju = _utils.Executable.find(juju)
+            except _utils.ExecutableNotFoundError:
+                return None
+        out = juju.run_out("--version")
         return out.decode().strip()
     except Exception:
         logging.exception("failure while getting juju version")
@@ -209,9 +210,29 @@ class CLI(object):
             juju = _juju1.CLIHooks(version)
         else:
             juju = _juju2.CLIHooks(version)
-
         executable = get_executable(filename, juju, cfgdir, envvars)
+
         return cls(executable, juju)
+
+    @classmethod
+    def from_filename(cls, filename, cfgdir, envvars=None):
+        """Return a new CLI for the given binary.
+
+        @param filename: The path to the juju binary.
+        @param cfgdir: The path to the "juju home" directory.
+        @param envvars: The extra environment variables to use when
+            running the juju command.  If not set then os.environs
+            is used.
+        """
+        # The value we use for the CLIHooks arg is irrelevant for what
+        # we need here, but we have to pass *something*.
+        executable = get_executable(filename, _juju2.CLIHooks, cfgdir, envvars)
+
+        version = _get_juju_version(executable)
+        if version is None:
+            version = JUJU2
+
+        return cls.from_version(executable.filename, version, cfgdir, envvars)
 
     def __init__(self, executable, version_cli):
         """
