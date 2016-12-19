@@ -4,8 +4,10 @@ import json
 import logging
 import os
 import os.path
+import subprocess
 from collections import namedtuple
 from cStringIO import StringIO
+from distutils.spawn import find_executable
 
 import yaml
 from twisted.internet import reactor
@@ -17,23 +19,28 @@ from . import config, _utils, _juju1, _juju2
 from .errors import CLIError
 
 
+def _is_supported_binary(juju, version_prefix):
+    try:
+        try:
+            executable = _utils.Executable.find(juju)
+        except _utils.ExecutableNotFoundError:
+            return False
+        out = executable.run_out("--version")
+        version = out.decode().strip()
+    except Exception:
+        logging.exception("failure while finding best juju binary")
+        return False
+    if not version.startswith(version_prefix):
+        return False
+    return True
+
+
 def _find_best_juju(version_prefix, supported, default=None):
     if default is None and supported:
         default = supported[0]
-    try:
-        for juju in supported:
-            try:
-                executable = _utils.Executable.find(juju)
-            except _utils.ExecutableNotFoundError:
-                continue
-            out = executable.run_out("--version")
-            version = out.decode().strip()
-            if version.startswith(version_prefix):
-                return juju
-    except Exception:
-        import logging
-        logging.exception("failure while finding best juju binary")
-        # Fall back to the default.
+    for juju in supported:
+        if _is_supported_binary(juju, version_prefix):
+            return juju
     return default
 
 
