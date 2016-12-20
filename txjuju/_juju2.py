@@ -113,14 +113,14 @@ class ConfigWriter(object):
 
 class CLIHooks(object):
 
-    VERSION = "2.0"
+    VERSION = "2.0"  # TODO: Update this once 2.1 final is released.
 
     CFGDIR_ENVVAR = "JUJU_DATA"
 
     def __init__(self, version=None):
         if version is None:
             version = self.VERSION
-        elif version != "2.0" and not version.startswith("2.0."):
+        elif not _utils.version_matches(version, ("2.0", "2.1")):
             raise ValueError("unsupported Juju version {!r}".format(version))
 
         self.version = version

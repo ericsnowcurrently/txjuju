@@ -19,6 +19,16 @@ class ExecutableNotFoundError(Exception):
         self.path = path
 
 
+def version_matches(version, allallowed):
+    """Determine whether or not the version matches."""
+    for allowed in allallowed:
+        if version == allowed:
+            return True
+        if version.startswith(allowed + "."):
+            return True
+    return False
+
+
 class Executable(namedtuple("Executable", "filename envvars")):
     """A single executable."""
 

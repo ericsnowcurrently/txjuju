@@ -375,9 +375,23 @@ class CLITests(unittest.TestCase):
         with self.assertRaises(ValueError):
             CLI.from_version("juju", "1.25.6", "")
 
-    def test_from_version_unsupported_version(self):
-        with self.assertRaises(ValueError):
-            CLI.from_version("juju", "1.24.5", "/tmp")
+    def test_from_version_supported_versions(self):
+        filename = self._write_executable("juju")
+        for version in ("1.25", "1.25.0", "1.25.6"):
+            cli = CLI.from_version(filename, version, "/tmp")
+            self.assertEqual(cli.version, version)
+        for version in ("2.0", "2.0.0", "2.0.3", "2.1", "2.1.0", "2.1.3"):
+            cli = CLI.from_version(filename, version, "/tmp")
+            self.assertEqual(cli.version, version)
+
+    def test_from_version_unsupported_versions(self):
+        filename = self._resolve_executable("juju")
+        for version in ("1.24", "1.24.0", "1.24.5", "1.26", "1.26.0"):
+            with self.assertRaises(ValueError):
+                CLI.from_version(filename, version, "/tmp")
+        for version in ("2.2", "2.2.0", "2.2.5"):
+            with self.assertRaises(ValueError):
+                CLI.from_version(filename, version, "/tmp")
 
     def test_from_filename_1_25(self):
         filename = self._write_executable("juju", "1.25.8")
