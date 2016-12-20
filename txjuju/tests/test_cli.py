@@ -333,14 +333,13 @@ class CLITests(unittest.TestCase):
             cli = CLI.from_version(filename, version, "/tmp")
 
             self.assertEqual(cli.executable.filename, filename)
-            # TODO: Check cli.version instead (once it's added).
-            self.assertEqual(cli._juju.VERSION, version.rpartition(".")[0])
+            self.assertEqual(cli.version, version)
 
     def test_from_version_partial_version(self):
         filename = self._write_executable("juju")
         for version in ("1.25", "1.25.x"):
             cli = CLI.from_version(filename, version, "/tmp")
-            self.assertEqual(cli._juju.VERSION, "1.25")
+            self.assertEqual(cli.version, version)
         for version in ("1", "1.x"):
             with self.assertRaises(ValueError):
                 CLI.from_version(filename, version, "/tmp")
@@ -385,16 +384,14 @@ class CLITests(unittest.TestCase):
         cli = CLI.from_filename(filename, "/tmp")
 
         self.assertEqual(cli.executable.filename, filename)
-        # TODO: Check cli.version instead (once it's added).
-        self.assertEqual(cli._juju.VERSION, "1.25")
+        self.assertEqual(cli.version, "1.25.8-trusty-amd64")
 
     def test_from_filename_2_0(self):
         filename = self._write_executable("juju", "2.0.1")
         cli = CLI.from_filename(filename, "/tmp")
 
         self.assertEqual(cli.executable.filename, filename)
-        # TODO: Check cli.version instead (once it's added).
-        self.assertEqual(cli._juju.VERSION, "2.0")
+        self.assertEqual(cli.version, "2.0.1-trusty-amd64")
 
     def test_from_filename_executable_found(self):
         filename = self._write_executable("juju", "1.25.8")
@@ -427,6 +424,15 @@ class CLITests(unittest.TestCase):
         with self.assertRaises(ValueError):
             CLI.from_filename(filename, "/tmp")
 
+    def test_all_args_provided(self):
+        self.version_cli.CFGDIR_ENVVAR = "JUJU_HOME"
+        filename = self._write_executable("juju")
+        exe = get_executable(filename, self.version_cli, "/tmp")
+        cli = CLI(exe, self.version_cli, "1.26.3")
+
+        self.assertEqual(cli.executable, exe)
+        self.assertEqual(cli.version, "1.26.3")
+
     def test_missing_executable(self):
         version_cli = object()
         with self.assertRaises(ValueError):
@@ -442,6 +448,17 @@ class CLITests(unittest.TestCase):
         exe = get_executable(filename, cli, "/tmp")
         with self.assertRaises(ValueError):
             CLI(exe, None)
+
+    def test_missing_version(self):
+        class cli(object):
+            CFGDIR_ENVVAR = "JUJU_HOME"
+            VERSION = "1.26"
+
+        filename = self._write_executable("juju")
+        exe = get_executable(filename, cli, "/tmp")
+        cli = CLI(exe, cli)
+
+        self.assertEqual(cli.version, "1.26")
 
     def test_bootstrap_full(self):
         self.version_cli.return_get_bootstrap_args = ["sub"]
@@ -519,6 +536,8 @@ class CLITests(unittest.TestCase):
 
 
 class StubJujuXCLI(object):
+
+    VERSION = "???"
 
     def __init__(self, calls=None):
         if calls is None:

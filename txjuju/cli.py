@@ -212,7 +212,7 @@ class CLI(object):
             juju = _juju2.CLIHooks(version)
         executable = get_executable(filename, juju, cfgdir, envvars)
 
-        return cls(executable, juju)
+        return cls(executable, juju, version)
 
     @classmethod
     def from_filename(cls, filename, cfgdir, envvars=None):
@@ -234,10 +234,11 @@ class CLI(object):
 
         return cls.from_version(executable.filename, version, cfgdir, envvars)
 
-    def __init__(self, executable, version_cli):
+    def __init__(self, executable, version_cli, version=None):
         """
         @param executable: The Executable to use.
         @param version_cli: The version-specific subcommand handler.
+        @param version: The Juju version of the executable.
         """
         if not executable:
             raise ValueError("missing executable")
@@ -245,11 +246,17 @@ class CLI(object):
             raise ValueError("missing version_cli")
         self._exe = executable
         self._juju = version_cli
+        self._version = version or version_cli.VERSION
 
     @property
     def executable(self):
         """The Executable used by this CLI."""
         return self._exe
+
+    @property
+    def version(self):
+        """The Juju version."""
+        return self._version
 
     def bootstrap(self, spec, to=None, cfgfile=None,
                   verbose=False, gui=False, autoupgrade=False):
