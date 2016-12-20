@@ -409,11 +409,18 @@ class Juju2CLI(object):
 
     # Allow override for testing purposes, normal use should not need
     # to change this.
-    juju_binary_path = JUJU2
+    juju_binary_path = None
 
     def __init__(self, juju_data):
         """The JUJU_DATA path, previously referred as JUJU_HOME."""
         self.juju_data = juju_data
+        # Set the binary for the instance.
+        if self.juju_binary_path is None:
+            self.juju_binary_path = JUJU2
+        else:
+            # Use CLI.from_filename() to resolve and validate the path.
+            cli = CLI.from_filename(self.juju_binary_path, juju_data)
+            self.juju_binary_path = cli.executable.filename
 
     def bootstrap(self, juju_controller_name, bootstrap_machine, cloud_name):
         """Run juju bootstrap against the specified juju_model_name.
