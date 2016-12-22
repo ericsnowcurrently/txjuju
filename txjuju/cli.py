@@ -17,24 +17,38 @@ from . import config, _utils, _juju1, _juju2
 from .errors import CLIError
 
 
-def _find_best_juju(supported):
+def _find_best_juju(expectedversion, supported):
     for juju in supported:
+        ambiguous = False
+        if juju.startswith("(") and juju.endswith(")"):
+            juju = juju[1:-1]
+            ambiguous = True
+
         try:
-            _utils.Executable.find(juju)
+            exe = _utils.Executable.find(juju)
         except _utils.ExecutableNotFoundError:
             continue
         else:
+            if ambiguous:
+                version = exe.run_out("--version")
+                if not version.startswith(expectedversion):
+                    continue
             return juju
     else:
         return supported[0]
 
 
-JUJU1 = _find_best_juju([
+JUJU1 = _find_best_juju("1.25", [
         # The first entry is also used as the default.
         "juju-1",
         "juju-1.25",
+        # Unfortunately, "juju" is ambiguous since Juju 2.x also
+        # installs as "juju".  This forces us to also check the
+        # executable's reported version, which the parentheses
+        # triggers.
+        "(juju)",
         ])
-JUJU2 = _find_best_juju([
+JUJU2 = _find_best_juju("2.x", [
         # The first entry is also used as the default.
         "juju-2",
         "juju-2.0",  # the latest production release

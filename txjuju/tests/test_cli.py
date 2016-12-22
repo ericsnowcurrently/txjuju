@@ -33,12 +33,20 @@ class DefaultJujuTest(unittest.TestCase):
         shutil.rmtree(self.dirname)
         super(DefaultJujuTest, self).tearDown()
 
-    def _write_juju(self, *names):
+    def _write_each_juju(self, *names, **kwargs):
         for name in names:
-            filename = os.path.join(self.dirname, name)
-            with open(filename, "w") as file:
-                file.write("#!/bin/bash\necho $@")
-            os.chmod(filename, 0o755)
+            self._write_juju(name, **kwargs)
+
+    def _write_juju(self, name, script=None, version=None):
+        if script is None:
+            if version is None:
+                script = "#!/bin/bash\necho $@\n"
+            else:
+                script = "#!/bin/bash\necho {}\n".format(version)
+        filename = os.path.join(self.dirname, name)
+        with open(filename, "w") as file:
+            file.write(script)
+        os.chmod(filename, 0o755)
 
     def _import_txjuju_cli_fresh(self):
         origmodule = sys.modules.pop("txjuju.cli")
@@ -48,14 +56,15 @@ class DefaultJujuTest(unittest.TestCase):
             sys.modules["txjuju.cli"] = origmodule
 
     def test_JUJU1_none_found(self):
-        self._write_juju("juju", "juju-2")
+        # Note that "juju" is ambiguous, so the version is key.
+        self._write_each_juju("juju", "juju-2", version="2.0.1")
         os.environ["PATH"] = self.dirname
         climod = self._import_txjuju_cli_fresh()
 
         self.assertEqual(climod.JUJU1, "juju-1")
 
-    def test_JUJU1_found_one(self):
-        self._write_juju("juju", "juju-2")
+    def test_JUJU1_found_one_unambiguous(self):
+        self._write_each_juju("juju-2", version="2.0.1")
         os.environ["PATH"] = self.dirname
         # Add executables in the reverse order of what's in cli.py.
         for juju in ("juju-1.25", "juju-1"):
@@ -64,15 +73,25 @@ class DefaultJujuTest(unittest.TestCase):
 
             self.assertEqual(climod.JUJU1, juju)
 
+    def test_JUJU1_found_one_ambiguous(self):
+        self._write_each_juju("juju-2", version="2.0.1")
+        os.environ["PATH"] = self.dirname
+        # Add executables in the reverse order of what's in cli.py.
+        for juju in ("juju",):
+            self._write_juju(juju, version="1.25.6")
+            climod = self._import_txjuju_cli_fresh()
+
+            self.assertEqual(climod.JUJU1, juju)
+
     def test_JUJU2_none_found(self):
-        self._write_juju("juju", "juju-1")
+        self._write_each_juju("juju", "juju-1", version="1.25.6")
         os.environ["PATH"] = self.dirname
         climod = self._import_txjuju_cli_fresh()
 
         self.assertEqual(climod.JUJU2, "juju-2")
 
     def test_JUJU2_found_one(self):
-        self._write_juju("juju", "juju-1")
+        self._write_each_juju("juju", "juju-1", version="1.25.6")
         os.environ["PATH"] = self.dirname
         # Add executables in the reverse order of what's in cli.py.
         for juju in ("juju-2.1", "juju-2.0", "juju-2"):
