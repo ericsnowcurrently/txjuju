@@ -1,12 +1,47 @@
 # Copyright 2016 Canonical Limited.  All rights reserved.
 
+import collections
 import os
 import os.path
 import subprocess
-from collections import namedtuple
 from distutils.spawn import find_executable
 
 import yaml
+
+
+def namedtuple(name, fields):
+    """A subclass-friendly wrapper around collections.namedtuple()."""
+    base = collections.namedtuple(name, fields)
+    ns = {
+            "__sots__": (),
+            "__doc__": base.__doc__,
+            }
+    return type(name, (NamedTuple, base), ns)
+
+
+class NamedTuple(object):
+    """A mixin to use when subclassing a namedtuple.
+
+    The collections.namedtuple implementation is not subclass-friendly
+    so we have to make adjustments.
+    """
+    __slots__ = ()
+
+    @classmethod
+    def _make(cls, iterable):
+        """Return an instance populated from the iterable."""
+        return cls(*iterable)
+
+    def __repr__(self):
+        args = ("{}={!r}".format(name, getattr(self, name))
+                for name in self._fields)
+        return "{}({})".format(type(self).__name__, ', '.join(args))
+
+    def _replace(self, **updates):
+        """Return a copy with updates applied."""
+        kwargs = self._asdict()
+        kwargs.update(updates)
+        return type(self)(**kwargs)
 
 
 class ExecutableNotFoundError(Exception):
