@@ -15,33 +15,11 @@ from twisted.python import log
 
 from . import config, _utils, _juju1, _juju2
 from .errors import CLIError
-
-
-def get_version_matcher(expected):
-    """Return a version matcher function that matches the given version.
-
-    Examples of supported expected versions:
-      1.25.6
-      1.25.x
-      1.25.X
-      1.25.
-      1.
-    """
-    if expected.endswith((".x", ".X", ".*")):
-        # Leave the trailing dot.
-        expected = expected[:-1]
-
-    def match(version):
-        """Return True if the version matches and False otherwise."""
-        if not version.startswith(expected):
-            return False
-        return True
-
-    return match
+from .version import VersionNumber
 
 
 def _find_best_juju(expectedversion, supported):
-    match_version = get_version_matcher(expectedversion)
+    expected = VersionNumber.parse(expectedversion)
     for juju in supported:
         ambiguous = False
         if juju.startswith("(") and juju.endswith(")"):
@@ -55,7 +33,7 @@ def _find_best_juju(expectedversion, supported):
         else:
             if ambiguous:
                 version = exe.run_out("--version")
-                if not match_version(version):
+                if not expected.match(version):
                     continue
             return juju
     else:
